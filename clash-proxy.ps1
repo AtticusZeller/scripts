@@ -1,4 +1,4 @@
-# mihomo-manager.ps1
+# clash-proxy.ps1
 
 # 定义常量
 $MIHOMO_DIR = "C:\Users\18317\OneDrive\Downloads\mihomo-windows-amd64-v1.18.9"
@@ -38,14 +38,12 @@ Start-Process -FilePath "$MIHOMO_EXE" -ArgumentList '-ext-ctl "127.0.0.1:9090"',
     $scriptPath = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StartMihomo.ps1"
     $scriptContent | Out-File $scriptPath -Force
     
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
     $trigger = New-ScheduledTaskTrigger -AtLogon
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
     
-    Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger `
-        -Principal $principal -Settings $settings -Force
+    Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
     
     Write-Host "✓ Service installed successfully"
 }
@@ -73,8 +71,7 @@ function Show-Subscription {
     if (Test-Path $SUBSCRIPTION_FILE) {
         Write-Host "Current subscription URL:"
         Get-Content $SUBSCRIPTION_FILE
-    }
-    else {
+    } else {
         Write-Host "Notice: No subscription URL found."
     }
 }
@@ -89,12 +86,10 @@ function Update-Config {
             Invoke-WebRequest -Uri $url -OutFile $CONFIG_FILE
             Restart-MihomoService
             Write-Host "✓ Configuration updated successfully."
-        }
-        catch {
+        } catch {
             Write-Host "Error: Configuration update failed. Please check the subscription URL."
         }
-    }
-    else {
+    } else {
         Write-Host "Error: No valid subscription URL found."
     }
 }
@@ -128,20 +123,18 @@ function Show-Status {
         $process = Get-Process | Where-Object { $_.Path -eq $MIHOMO_EXE }
         if ($process) {
             Write-Host "Process Status: Running (PID: $($process.Id))"
-        }
-        else {
+        } else {
             Write-Host "Process Status: Not running"
         }
-    }
-    else {
+    } else {
         Write-Host "Service not installed"
     }
 }
 
 # 显示帮助
 function Show-Help {
-    Write-Host @"
-Usage: .\mihomo-manager.ps1 [command]
+    @"
+Usage: .\clash-proxy.ps1 [command]
 Commands:
     install     Install the service
     start       Start the service
@@ -152,12 +145,12 @@ Commands:
     show-sub    Show current subscription
     update      Update configuration
     help        Show this help message
-"@
+"@ | Write-Host
 }
 
 # 主程序
 if (-not (Test-Administrator)) {
-    Write-Host "Please run as Administrator"
+    Write-Host "Error: Please run as Administrator"
     exit 1
 }
 
