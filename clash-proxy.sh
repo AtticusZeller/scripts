@@ -130,6 +130,7 @@ show_help() {
     echo "  stop            Stop the service"
     echo "  restart         Restart the service"
     echo "  status          Check service status"
+    echo "  logs            Show service logs"
     echo "  disable         Disable autostart"
     echo "  add-sub [URL]   Add a subscription URL"
     echo "  show-sub        Display the current subscription URL"
@@ -167,6 +168,9 @@ case "$1" in
     else
         echo "✗ Service status: Not running"
     fi
+    ;;
+"logs")
+    journalctl -u mihomo -o cat -f
     ;;
 "disable")
     disable_autostart
