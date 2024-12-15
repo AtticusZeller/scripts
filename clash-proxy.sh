@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Define constants
-MIHOMO_CONFIG_DIR="$HOME/Proxy"
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
+MIHOMO_CONFIG_DIR="$REAL_USER_HOME/proxy"
 MIHOMO_CONFIG="$MIHOMO_CONFIG_DIR/config.yaml"
 MIHOMO_SERVICE="/etc/systemd/system/mihomo.service"
 SUBSCRIPTION_FILE="$MIHOMO_CONFIG_DIR/subscription.txt"
@@ -27,16 +28,19 @@ check_root() {
 init_directories() {
     if [ ! -d "$MIHOMO_CONFIG_DIR" ]; then
         mkdir -p "$MIHOMO_CONFIG_DIR"
+        chown "$REAL_USER":"$REAL_USER" "$MIHOMO_CONFIG_DIR"
         echo "✓ Created configuration directory: $MIHOMO_CONFIG_DIR"
     fi
 
     if [ ! -f "$SUBSCRIPTION_FILE" ]; then
         touch "$SUBSCRIPTION_FILE"
+        chown "$REAL_USER":"$REAL_USER" "$SUBSCRIPTION_FILE"
         echo "✓ Created subscription file: $SUBSCRIPTION_FILE"
     fi
 }
 
 # Create systemd service
+# https://wiki.metacubex.one/startup/service/#systemd
 create_service() {
     cat >"$MIHOMO_SERVICE" <<EOF
 [Unit]
@@ -47,8 +51,8 @@ After=network.target
 Type=simple
 LimitNPROC=500
 LimitNOFILE=1000000
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_SYS_TIME CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_SYS_TIME CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE
 Restart=always
 ExecStart=$MIHOMO_PATH -d $MIHOMO_CONFIG_DIR
 ExecReload=/bin/kill -HUP \$MAINPID
@@ -56,7 +60,6 @@ ExecReload=/bin/kill -HUP \$MAINPID
 [Install]
 WantedBy=multi-user.target
 EOF
-
     systemctl daemon-reload
     systemctl enable mihomo
     echo "✓ Service created successfully."
@@ -97,6 +100,7 @@ update_config() {
     if [ -s "$SUBSCRIPTION_FILE" ]; then
         sub_url=$(cat "$SUBSCRIPTION_FILE")
         if curl -s "$sub_url" >"$MIHOMO_CONFIG"; then
+            chown "$REAL_USER":"$REAL_USER" "$MIHOMO_CONFIG"
             systemctl reload mihomo 2>/dev/null || true
             echo "✓ Configuration updated successfully."
         else
