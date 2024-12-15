@@ -38,11 +38,6 @@ init_directories() {
 
 # Create systemd service
 create_service() {
-    if [ -f "$MIHOMO_SERVICE" ]; then
-        echo "Notice: Service already exists. Skipping creation."
-        return
-    fi
-
     cat >"$MIHOMO_SERVICE" <<EOF
 [Unit]
 Description=mihomo Daemon
