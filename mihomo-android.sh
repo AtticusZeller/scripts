@@ -32,23 +32,41 @@ get_latest_version() {
 }
 
 # 下载并安装指定版本的 mihomo
+# 下载并安装指定版本的 mihomo
 install_mihomo() {
     local version=$1
     local download_url="https://github.com/MetaCubeX/mihomo/releases/download/${version}/mihomo-android-arm64-v8-${version}.gz"
+    local temp_dir="$MIHOMO_CONFIG_DIR/temp"
     
+    # 创建临时目录
+    mkdir -p "$temp_dir"
+
     echo "Downloading mihomo ${version}..."
-    if curl -L "$download_url" -o "$MIHOMO_CONFIG_DIR/mihomo.gz"; then
+    if curl -L "$download_url" -o "$temp_dir/mihomo.gz"; then
         echo "Extracting mihomo..."
-        gunzip -f "$MIHOMO_CONFIG_DIR/mihomo.gz"
-        mv "$MIHOMO_CONFIG_DIR/mihomo" "$MIHOMO_PATH"
+        # 确保目标目录存在
+        mkdir -p "$(dirname "$MIHOMO_PATH")"
+        
+        # 解压缩到临时目录
+        gunzip -f "$temp_dir/mihomo.gz"
+        
+        # 移动到最终位置
+        mv "$temp_dir/mihomo" "$MIHOMO_PATH"
         chmod +x "$MIHOMO_PATH"
+        
+        # 清理临时文件
+        rm -rf "$temp_dir"
+        
         echo "✓ mihomo ${version} installed successfully."
         return 0
     else
         echo "Error: Failed to download mihomo."
+        # 清理临时文件
+        rm -rf "$temp_dir"
         return 1
     fi
 }
+
 
 # 检查更新
 check_update() {
