@@ -102,7 +102,13 @@ check_update() {
     fi
 }
 
-
+check_mihomo() {
+    if [ ! -x "$MIHOMO_PATH" ]; then
+        echo "mihomo not found. Installing..."
+        local latest_version=$(get_latest_version)
+        install_mihomo "$latest_version"
+    fi
+}
 
 # 创建必要的目录和文件
 init_directories() {
