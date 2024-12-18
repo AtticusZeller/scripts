@@ -132,25 +132,42 @@ start_service() {
         fi
     fi
 
-    # 使用 VPNService 模式启动
-    nohup "$MIHOMO_PATH" -d "$MIHOMO_CONFIG_DIR" --vpn > "$MIHOMO_CONFIG_DIR/mihomo.log" 2>&1 &
-    echo $! > "$PID_FILE"
+    echo "Starting mihomo in VPN mode..."
+    echo "! Important: When Android system prompts, please:"
+    echo "1. Allow VPN connection"
+    echo "2. Trust this application"
+    echo "3. Accept the VPN configuration"
+    echo ""
     
-    echo "✓ Service started with VPNService mode."
-    echo "➜ Dashboard URL: https://metacubexd.pages.dev/"
-    echo "➜ Default port: 9097"
-    echo "! Note: You need to grant VPN permission when prompted"
-}
-
-check_vpn_permission() {
-    # 检查是否有 VPN 权限
-    if ! pm list permissions | grep -q "android.permission.NET_ADMIN"; then
-        echo "Warning: VPN permission not found."
-        echo "Please grant VPN permission when prompted."
+    # 使用 VPN 模式启动
+    nohup "$MIHOMO_PATH" -d "$MIHOMO_CONFIG_DIR" > "$MIHOMO_CONFIG_DIR/mihomo.log" 2>&1 &
+    local PID=$!
+    echo $PID > "$PID_FILE"
+    
+    # 等待几秒检查服务是否正常启动
+    sleep 3
+    if kill -0 $PID 2>/dev/null; then
+        echo "✓ Service started."
+        echo "➜ Dashboard URL: https://metacubexd.pages.dev/"
+        echo "➜ Default port: 9097"
+        echo "➜ Checking logs for VPN status..."
+        
+        # 显示最近的日志
+        tail -n 5 "$MIHOMO_CONFIG_DIR/mihomo.log"
+        
+        echo ""
+        echo "! If no VPN prompt appears, please:"
+        echo "1. Check if mihomo is compiled with VPN support"
+        echo "2. Check the logs using: ./mihomo-android.sh logs"
+        echo "3. Make sure your config.yaml has correct tun settings"
+    else
+        echo "! Service failed to start. Checking logs:"
+        tail -n 10 "$MIHOMO_CONFIG_DIR/mihomo.log"
+        rm -f "$PID_FILE"
         return 1
     fi
-    return 0
 }
+
 
 
 # 停止服务
