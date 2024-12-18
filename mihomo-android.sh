@@ -1,13 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # 定义路径和版本
-MIHOMO_VERSION="v1.19.0"
 MIHOMO_CONFIG_DIR="$HOME/proxy"
 MIHOMO_CONFIG="$MIHOMO_CONFIG_DIR/config.yaml"
 SUBSCRIPTION_FILE="$MIHOMO_CONFIG_DIR/subscription.txt"
 MIHOMO_PATH="$PREFIX/bin/mihomo"
 PID_FILE="$MIHOMO_CONFIG_DIR/mihomo.pid"
-DOWNLOAD_URL="https://github.com/MetaCubeX/mihomo/releases/download/$MIHOMO_VERSION/mihomo-android-arm64-v8-$MIHOMO_VERSION.gz"
 
 # 检查并安装必要的工具
 check_dependencies() {
@@ -17,39 +15,72 @@ check_dependencies() {
     fi
 }
 
-# 下载并安装 mihomo
+# 获取当前安装的 mihomo 版本
+get_current_version() {
+    if [ -x "$MIHOMO_PATH" ]; then
+        local version=$("$MIHOMO_PATH" -v | grep -o 'v[0-9.]*' | head -n 1)
+        echo "$version"
+    else
+        echo "not_installed"
+    fi
+}
+
+# 从 GitHub 获取最新版本
+get_latest_version() {
+    local latest_version=$(curl -s "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r .tag_name)
+    echo "$latest_version"
+}
+
+# 下载并安装指定版本的 mihomo
 install_mihomo() {
-    echo "Downloading mihomo..."
-    if curl -L "$DOWNLOAD_URL" -o "/tmp/mihomo.gz"; then
+    local version=$1
+    local download_url="https://github.com/MetaCubeX/mihomo/releases/download/${version}/mihomo-android-arm64-v8-${version}.gz"
+    
+    echo "Downloading mihomo ${version}..."
+    if curl -L "$download_url" -o "/tmp/mihomo.gz"; then
         echo "Extracting mihomo..."
         gunzip -f "/tmp/mihomo.gz"
         mv "/tmp/mihomo" "$MIHOMO_PATH"
         chmod +x "$MIHOMO_PATH"
-        echo "✓ mihomo installed successfully."
+        echo "✓ mihomo ${version} installed successfully."
+        return 0
     else
         echo "Error: Failed to download mihomo."
-        exit 1
+        return 1
     fi
 }
 
 # 检查更新
 check_update() {
     echo "Checking for updates..."
-    local latest_version=$(curl -s "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    if [ -n "$latest_version" ] && [ "$latest_version" != "$MIHOMO_VERSION" ]; then
+    
+    local current_version=$(get_current_version)
+    local latest_version=$(get_latest_version)
+    
+    if [ "$current_version" = "not_installed" ]; then
+        echo "mihomo is not installed. Installing latest version..."
+        install_mihomo "$latest_version"
+        return
+    fi
+    
+    if [ -n "$latest_version" ] && [ "$current_version" != "$latest_version" ]; then
         echo "New version available: $latest_version"
-        echo "Current version: $MIHOMO_VERSION"
+        echo "Current version: $current_version"
         read -p "Do you want to update? (y/n) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            MIHOMO_VERSION=$latest_version
-            DOWNLOAD_URL="https://github.com/MetaCubeX/mihomo/releases/download/$MIHOMO_VERSION/mihomo-android-arm64-v8-$MIHOMO_VERSION.gz"
             stop_service
-            install_mihomo
-            start_service
+            if install_mihomo "$latest_version"; then
+                start_service
+                echo "✓ Update completed successfully."
+            else
+                echo "! Update failed, reverting to previous version..."
+                install_mihomo "$current_version"
+                start_service
+            fi
         fi
     else
-        echo "You are using the latest version."
+        echo "You are using the latest version ($current_version)."
     fi
 }
 
@@ -57,9 +88,11 @@ check_update() {
 check_mihomo() {
     if [ ! -x "$MIHOMO_PATH" ]; then
         echo "mihomo not found. Installing..."
-        install_mihomo
+        local latest_version=$(get_latest_version)
+        install_mihomo "$latest_version"
     fi
 }
+
 
 # 创建必要的目录和文件
 init_directories() {
