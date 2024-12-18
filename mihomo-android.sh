@@ -37,10 +37,10 @@ install_mihomo() {
     local download_url="https://github.com/MetaCubeX/mihomo/releases/download/${version}/mihomo-android-arm64-v8-${version}.gz"
     
     echo "Downloading mihomo ${version}..."
-    if curl -L "$download_url" -o "/tmp/mihomo.gz"; then
+    if curl -L "$download_url" -o "$MIHOMO_CONFIG_DIR/mihomo.gz"; then
         echo "Extracting mihomo..."
-        gunzip -f "/tmp/mihomo.gz"
-        mv "/tmp/mihomo" "$MIHOMO_PATH"
+        gunzip -f "$MIHOMO_CONFIG_DIR/mihomo.gz"
+        mv "$MIHOMO_CONFIG_DIR/mihomo" "$MIHOMO_PATH"
         chmod +x "$MIHOMO_PATH"
         echo "✓ mihomo ${version} installed successfully."
         return 0
