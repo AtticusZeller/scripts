@@ -32,7 +32,6 @@ get_latest_version() {
 }
 
 # 下载并安装指定版本的 mihomo
-# 下载并安装指定版本的 mihomo
 install_mihomo() {
     local version=$1
     local download_url="https://github.com/MetaCubeX/mihomo/releases/download/${version}/mihomo-android-arm64-v8-${version}.gz"
@@ -102,6 +101,7 @@ check_update() {
     fi
 }
 
+# 检查 mihomo 是否安装
 check_mihomo() {
     if [ ! -x "$MIHOMO_PATH" ]; then
         echo "mihomo not found. Installing..."
@@ -109,6 +109,7 @@ check_mihomo() {
         install_mihomo "$latest_version"
     fi
 }
+
 
 # 创建必要的目录和文件
 init_directories() {
@@ -131,44 +132,13 @@ start_service() {
             return
         fi
     fi
-
-    echo "Starting mihomo in VPN mode..."
-    echo "! Important: When Android system prompts, please:"
-    echo "1. Allow VPN connection"
-    echo "2. Trust this application"
-    echo "3. Accept the VPN configuration"
-    echo ""
     
-    # 使用 VPN 模式启动
     nohup "$MIHOMO_PATH" -d "$MIHOMO_CONFIG_DIR" > "$MIHOMO_CONFIG_DIR/mihomo.log" 2>&1 &
-    local PID=$!
-    echo $PID > "$PID_FILE"
-    
-    # 等待几秒检查服务是否正常启动
-    sleep 3
-    if kill -0 $PID 2>/dev/null; then
-        echo "✓ Service started."
-        echo "➜ Dashboard URL: https://metacubexd.pages.dev/"
-        echo "➜ Default port: 9097"
-        echo "➜ Checking logs for VPN status..."
-        
-        # 显示最近的日志
-        tail -n 5 "$MIHOMO_CONFIG_DIR/mihomo.log"
-        
-        echo ""
-        echo "! If no VPN prompt appears, please:"
-        echo "1. Check if mihomo is compiled with VPN support"
-        echo "2. Check the logs using: ./mihomo-android.sh logs"
-        echo "3. Make sure your config.yaml has correct tun settings"
-    else
-        echo "! Service failed to start. Checking logs:"
-        tail -n 10 "$MIHOMO_CONFIG_DIR/mihomo.log"
-        rm -f "$PID_FILE"
-        return 1
-    fi
+    echo $! > "$PID_FILE"
+    echo "✓ Service started."
+    echo "➜ Dashboard URL: https://metacubexd.pages.dev/"
+    echo "➜ Default port: 9097"
 }
-
-
 
 # 停止服务
 stop_service() {
@@ -265,14 +235,8 @@ check_dependencies
 init_directories
 
 case "$1" in
-      "start")
+    "start")
         check_mihomo
-        if grep -q "tun:" "$MIHOMO_CONFIG"; then
-            if ! check_vpn_permission; then
-                echo "Starting in VPNService mode..."
-                echo "Please accept the VPN configuration prompt."
-            fi
-        fi
         start_service
         ;;
     "stop")
