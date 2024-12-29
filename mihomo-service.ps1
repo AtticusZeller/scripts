@@ -1,12 +1,9 @@
 # mihomo-service.ps1
 
-# 定义常量
 $REAL_USER = $env:USERNAME
-$MIHOMO_CONFIG_DIR = "C:\Users\$REAL_USER\proxy"
-$MIHOMO_CONFIG = Join-Path $MIHOMO_CONFIG_DIR "config.yaml"
-$SUBSCRIPTION_FILE = Join-Path $MIHOMO_CONFIG_DIR "subscription.txt"
-
 $INSTALL_DIR = "C:\Program Files\mihomo"
+$MIHOMO_CONFIG = Join-Path $INSTALL_DIR "config.yaml"
+$SUBSCRIPTION_FILE = Join-Path $INSTALL_DIR "subscription.txt"
 $MIHOMO_PATH = Join-Path $INSTALL_DIR "mihomo.exe"
 $GITHUB_API = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
 $TASK_NAME = "mihomo"
@@ -22,9 +19,9 @@ function Test-Administrator {
 
 # 初始化目录
 function Initialize-Directories {
-    if (!(Test-Path $MIHOMO_CONFIG_DIR)) {
-        New-Item -ItemType Directory -Path $MIHOMO_CONFIG_DIR -Force | Out-Null
-        Write-Host "[+] Created configuration directory: $MIHOMO_CONFIG_DIR"
+    if (!(Test-Path $INSTALL_DIR)) {
+        New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
+        Write-Host "[+] Created configuration directory: $INSTALL_DIR"
     }
 
     if (!(Test-Path $SUBSCRIPTION_FILE)) {
@@ -35,7 +32,7 @@ function Initialize-Directories {
 
 # 创建服务（使用计划任务）
 function Install-MihomoService {
-    $action = New-ScheduledTaskAction -Execute $MIHOMO_PATH -Argument "-d `"$MIHOMO_CONFIG_DIR`""
+    $action = New-ScheduledTaskAction -Execute $MIHOMO_PATH -Argument "-d `"$INSTALL_DIR`""
     $trigger = New-ScheduledTaskTrigger -AtLogon
     $principal = New-ScheduledTaskPrincipal -UserId $REAL_USER -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
@@ -48,7 +45,6 @@ function Install-MihomoService {
 # 添加订阅
 function Add-Subscription {
     param([string]$url)
-    
     if ([string]::IsNullOrEmpty($url)) {
         Write-Host "Error: Please provide a subscription URL."
         return
@@ -126,7 +122,7 @@ function Install-Mihomo {
     }
 
     Write-Host "Installing mihomo $($latest.Version)..."
-    
+
     # 创建临时目录
     $tempDir = Join-Path $env:TEMP "mihomo_install"
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
@@ -242,8 +238,11 @@ function Start-MihomoService {
     if (-not $taskExists) {
         Write-Host "Creating service..."
         Install-MihomoService
+    } else {
+        # 如果任务存在，则停止它
+        Stop-MihomoService
     }
-    
+
     Start-ScheduledTask -TaskName $TASK_NAME
     Write-Host "[+] Service started."
     Write-Host "-> Dashboard URL: https://metacubexd.pages.dev/"
