@@ -11,15 +11,17 @@ SINGBOX_PATH=$(which sing-box)
 # Check if sing-box is installed
 check_singbox() {
     if [ ! -x "$SINGBOX_PATH" ]; then
-        echo "Error: sing-box is not installed. Please install sing-box first."
+        echo "❌ sing-box not found. Installing..."
         exit 1
+    else
+        echo "✅ sing-box is found."
     fi
 }
 
 # Ensure root privileges
 check_root() {
     if [ "$(id -u)" != "0" ]; then
-        echo "Error: This script must be run as root."
+        echo "⚠️ This script must be run as root."
         exit 1
     fi
 }
@@ -29,13 +31,13 @@ init_directories() {
     if [ ! -d "$SINGBOX_CONFIG_DIR" ]; then
         mkdir -p "$SINGBOX_CONFIG_DIR"
         chown "$REAL_USER":"$REAL_USER" "$SINGBOX_CONFIG_DIR"
-        echo "✓ Created configuration directory: $SINGBOX_CONFIG_DIR"
+        echo "📁 Created configuration directory: $INSTALL_DIR"
     fi
 
     if [ ! -f "$SUBSCRIPTION_FILE" ]; then
         touch "$SUBSCRIPTION_FILE"
         chown "$REAL_USER":"$REAL_USER" "$SUBSCRIPTION_FILE"
-        echo "✓ Created subscription file: $SUBSCRIPTION_FILE"
+        echo "📁 Created subscription file: $SUBSCRIPTION_FILE"
     fi
 }
 
@@ -54,6 +56,7 @@ LimitNOFILE=1000000
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_SYS_TIME CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_SYS_TIME CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE
 Restart=always
+ExecStartPre=$SINGBOX_PATH tools synctime -w -C $SINGBOX_CONFIG_DIR
 ExecStart=$SINGBOX_PATH run -C $SINGBOX_CONFIG_DIR
 ExecReload=/bin/kill -HUP \$MAINPID
 
@@ -62,62 +65,94 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable sing-box
-    echo "✓ Service created successfully."
+    echo "⌛ Service created successfully."
+}
+
+ensure_service() {
+    if ! systemctl list-unit-files | grep -q "^sing-box.service"; then
+        create_service
+    fi
 }
 
 # Add subscription
 add_subscription() {
     if [ -z "$1" ]; then
-        echo "Error: Please provide a subscription URL."
+        echo "❌ Please provide a subscription URL."
         return 1
     fi
 
-    # Validate URL format
     if ! echo "$1" | grep -qE '^https?://'; then
-        echo "Error: Invalid URL format."
+        echo "❌ Invalid URL format."
         return 1
     fi
 
-    echo "$1" >"$SUBSCRIPTION_FILE"
-    echo "✓ Subscription added successfully."
+    echo "$1" > "$SUBSCRIPTION_FILE"
+    echo "📁 Subscription added successfully."
     update_config
 }
 
 # Show current subscription
 show_subscription() {
     if [ -s "$SUBSCRIPTION_FILE" ]; then
-        echo "Current subscription URL:"
+        echo "🔗 Current subscription URL:"
         cat "$SUBSCRIPTION_FILE"
     else
-        echo "Notice: No subscription URL found."
+        echo "❌ No subscription URL found."
     fi
 }
 
 # Update configuration
 update_config() {
-    echo "Updating configuration..."
-
     if [ -s "$SUBSCRIPTION_FILE" ]; then
-        sub_url=$(cat "$SUBSCRIPTION_FILE")
-        if curl -s "$sub_url" >"$SINGBOX_CONFIG"; then
+        local url
+        url=$(cat "$SUBSCRIPTION_FILE")
+        echo "⌛ Update Configuration from $url"
+        if curl -s "$url" >"$SINGBOX_CONFIG"; then
             chown "$REAL_USER":"$REAL_USER" "$SINGBOX_CONFIG"
-            systemctl reload sing-box 2>/dev/null || true
-            echo "✓ Configuration updated successfully."
+            echo "✅ Configuration updated successfully."
+            restart_service
         else
-            echo "Error: Configuration update failed. Please check the subscription URL."
+            echo "❌ Configuration update failed. Please check the subscription URL."
         fi
     else
-        echo "Error: No valid subscription URL found."
+        echo "❌ No valid subscription URL found."
     fi
 }
 
-# Disable autostart
+restart_service() {
+    ensure_service
+    stop_service
+    systemctl restart sing-box
+    echo "✅ Service restarted."
+    echo "🔗 Dashboard URL: https://metacubexd.pages.dev/"
+    echo "🔌 Default API: http://127.0.0.1:9090"
+}
+
+stop_service() {
+    systemctl stop sing-box
+    echo "✋ Service stopped."
+}
+
 disable_autostart() {
-    if systemctl is-enabled sing-box >/dev/null 2>&1; then
-        systemctl disable sing-box
-        echo "✓ Autostart disabled."
+    stop_service
+    systemctl disable sing-box
+    echo "✋ Autostart disabled."
+}
+
+start_service() {
+    ensure_service
+    systemctl start sing-box
+    echo "✅ Service started."
+    echo "🔗 Dashboard URL: https://metacubexd.pages.dev/"
+    echo "🔌 Default API: http://127.0.0.1:9090"
+}
+
+get_status() {
+    if systemctl is-active sing-box >/dev/null 2>&1; then
+        echo "🏃 Service status: Running"
+        systemctl status sing-box
     else
-        echo "Notice: Autostart is already disabled."
+        echo "⚠️ Service status: Not running"
     fi
 }
 
@@ -145,28 +180,16 @@ init_directories
 case "$1" in
 "start")
     create_service
-    systemctl start sing-box
-    echo "✓ Service started."
-    echo "➜ Dashboard URL: https://metacubexd.pages.dev/"
-    echo "➜ Default port: 9090"
+    start_service
     ;;
 "stop")
-    systemctl stop sing-box
-    echo "✓ Service stopped."
+    stop_service
     ;;
 "restart")
-    systemctl restart sing-box
-    echo "✓ Service restarted."
-    echo "➜ Dashboard URL: https://metacubexd.pages.dev/"
-    echo "➜ Default port: 9090"
+    restart_service
     ;;
 "status")
-    if systemctl is-active sing-box >/dev/null 2>&1; then
-        echo "✓ Service status: Running"
-        systemctl status sing-box
-    else
-        echo "✗ Service status: Not running"
-    fi
+    get_status
     ;;
 "logs")
     journalctl -u sing-box -o cat -f
@@ -187,7 +210,7 @@ case "$1" in
     show_help
     ;;
 *)
-    echo "Error: Unknown command: $1"
+    echo "❌ Unknown command: $1"
     show_help
     exit 1
     ;;
