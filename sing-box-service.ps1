@@ -66,7 +66,7 @@ function Install-sing-box {
         if (!(Test-Path $sourcePath)) {
             throw "Cannot find sing-box.exe in GOPATH"
         }
-
+        Stop-SingBoxService
         Copy-Item $sourcePath $INSTALL_DIR -Force
         Write-Host "🥳 sing-box $version installed successfully." -ForegroundColor Green
         return $true
