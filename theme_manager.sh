@@ -2,7 +2,7 @@
 
 # Define repository list and corresponding installation commands
 declare -A repos=(
-    ["WhiteSur-gtk-theme"]="./install.sh --libadwaita -c Dark -t blue --gnome-shell --round && ./tweaks.sh -F -f --dash-to-dock --color Dark --theme blue && sudo ./tweaks.sh -g -N"
+    ["WhiteSur-gtk-theme"]="./install.sh --libadwaita -c light -t blue --gnome-shell --round && ./tweaks.sh -F -f --dash-to-dock --color light --theme blue && sudo ./tweaks.sh -g"
     ["WhiteSur-icon-theme"]="./install.sh -a -b"
     ["McMojave-cursors"]="sudo ./install.sh"
 )
