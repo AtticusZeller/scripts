@@ -3,9 +3,18 @@ $TARGET_SSID = "Student_CX"
 
 # Function to get the current SSID
 function Get-CurrentSSID {
-    $wlanInterface = (Get-NetAdapter | Where-Object {$_.InterfaceDescription -match 'Wireless'}).InterfaceGuid
-    $currentConnection = (Get-NetConnectionProfile | Where-Object {$_.InterfaceAlias -match $wlanInterface}).Name
-    return $currentConnection
+    # Get all connection profiles
+    $profiles = Get-NetConnectionProfile
+
+    # Look for wireless networks (Wi-Fi is typically the interface alias)
+    $wifiProfile = $profiles | Where-Object { $_.InterfaceAlias -eq "Wi-Fi" }
+
+    if ($wifiProfile) {
+        return $wifiProfile.Name
+    }
+    else {
+        return $null
+    }
 }
 
 # Get the current SSID
@@ -20,5 +29,5 @@ if ($CURRENT_SSID -eq $TARGET_SSID) {
     Write-Host $RESPONSE.Content
 }
 else {
-    Write-Host "Not connected to $TARGET_SSID. No login attempt made."
+    Write-Host "Not connected to $TARGET_SSID. Current network: $CURRENT_SSID"
 }
