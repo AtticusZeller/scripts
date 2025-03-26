@@ -1,0 +1,1 @@
+ $tag = (Invoke-RestMethod "https://api.github.com/repos/SagerNet/sing-box/releases")[0].tag_name; Write-Host "Latest version: $tag"; go install -v -tags "with_quic,with_wireguard,with_clash_api,with_gvisor" "github.com/sagernet/sing-box/cmd/sing-box@$tag"
