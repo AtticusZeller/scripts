@@ -12,10 +12,11 @@ process_repos() {
     local action=$1
     for repo in "${!repos[@]}"; do
         if [ "$action" = "install" ] && [ ! -d "$repo" ]; then
-            git clone "https://github.com/vinceliuice/$repo.git"
+            git clone "git@github.com:vinceliuice/$repo.git" --depth 1
         elif [ "$action" = "update" ] && [ -d "$repo" ]; then
-            cd "$repo" || exit 0
-            git pull
+            echo "update$repo"
+            cd "$repo" || echo "failed to cd $repo"
+            git pull -f
             cd ..
         fi
         if [ -d "$repo" ]; then
